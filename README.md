@@ -427,3 +427,31 @@ shap
 tableone
 missingpy   # or another MissForest implementation as used locally
 '''
+
+## 5. How to run
+
+1. Clone the repository and move into the project folder.
+2. Place the example dataset (or your own tabular binary dataset) under:
+data/raw/diabetes_raw.csv
+3. Install dependencies:
+4. Run the main pipeline:
+
+```
+python src/main.py
+```
+
+5. Processed datasets, trained models and all result figures/tables will be written to:
+
+`data/processed/`
+
+`models/`
+
+`results/`
+
+---
+
+## 6. Notes
+
+- This repository is intended for **educational and research practice** in tabular machine learning and model interpretability.
+- The dataset included is an example only and is **not intended for clinical decision-making**.
+- The code is heavily commented in **Chinese**, aiming to make the entire workflow easy to follow and adapt to other projects.
