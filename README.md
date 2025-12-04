@@ -148,10 +148,7 @@ For tree-based, ensemble and neural models:
     - `significant_vars.pkl`
 
 Additionally, the optimal decision tree structure is exported as:
-
-```
-results/performance/tree_structure.jpg
-```
+- `results/performance/tree_structure.jpg`
 
 ---
 
@@ -180,7 +177,7 @@ Representative figures (validation set):
 ![Decision curve analysis on validation set](results/performance/DCA_curves_allmodel_validation.png)
 
 A summary table of metrics for all models on the validation set is stored as:
-- results/tables/model_performance_validation.csv
+- `results/tables/model_performance_validation.csv`
 
 ---
 
@@ -246,10 +243,8 @@ Implementation details:
      - a single observation  
      - all interpreted observations
 - All figures are saved under:
+    - `results/shap`
 
-'''
-results/shap/
-'''
 
 Example images:
 
