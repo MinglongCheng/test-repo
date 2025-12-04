@@ -89,7 +89,7 @@ This makes it easy to check whether the split is reasonably balanced.
   `StandardScaler`.
 - Fit the scaler on the training set, then apply to the test set.
 - Output:
- - `train_data_scaled.csv`
+  - `train_data_scaled.csv`
   - `test_data_scaled.csv`
 
 **Two complementary feature selection strategies**
