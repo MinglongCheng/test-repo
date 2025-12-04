@@ -46,7 +46,7 @@ Main capabilities:
 
 Example figure (you can enable saving in code):
 
-```python
+```
 plt.savefig("results/performance/example_feature_distribution.png",
             dpi=300, bbox_inches="tight")
 ```
@@ -138,18 +138,18 @@ For tree-based, ensemble and neural models:
   3. Choose the combination with highest validation AUC as the final model.
 
 - All final models are saved into `models/`:
-  - `logistic_model.pkl`
-  - `tree_model.pkl`
-  - `rf_model.pkl`
-  - `xgb_model.pkl`
-  - `lgb_model.pkl`
-  - `svm_model.pkl`
-  - `ann_model.pkl`
-  - `significant_vars.pkl`
+    - `logistic_model.pkl`
+    - `tree_model.pkl`
+    - `rf_model.pkl`
+    - `xgb_model.pkl`
+    - `lgb_model.pkl`
+    - `svm_model.pkl`
+    - `ann_model.pkl`
+    - `significant_vars.pkl`
 
 Additionally, the optimal decision tree structure is exported as:
 
-```text
+```
 results/performance/tree_structure.jpg
 ```
 
@@ -159,11 +159,11 @@ results/performance/tree_structure.jpg
 
 For the validation set (used in tuning machine-learning models), the code computes:
 
-- Confusion matrices
-- Accuracy, Precision, Sensitivity (Recall), Specificity, F1-score
-- AUC and 95% confidence intervals (using an analytical standard error approximation)
+- **Confusion matrices**
+- **Accuracy**, **Precision**, **Sensitivity (Recall)**, **Specificity**, **F1-score**
+- **AUC** and **95% confidence intervals** (using an analytical standard error approximation)
 
-Visualizations:
+**Visualizations**:
 
 - Confusion matrix heatmaps (via CM_plot)
 - Individual ROC curves per model
@@ -183,3 +183,252 @@ A summary table of metrics for all models on the validation set is stored as:
 - results/tables/model_performance_validation.csv
 
 ---
+
+### 2.7 Evaluation on external test set
+
+The final models are then evaluated on the **held-out test set**, which was never used in training or tuning.
+
+Computed metrics mirror those on the validation set:
+
+- **Confusion matrices**
+- **Accuracy**, **Precision**, **Sensitivity (Recall)**, **Specificity**, **F1-score**
+- **AUC** and **95% confidence intervals** (using an analytical standard error approximation)
+
+**Visualizations**:
+
+- Combined ROC curves for all models  
+
+![ROC curves on test set](results/performance/ROC_curves_allmodel_test.png)
+
+- Combined calibration curves
+
+![Calibration curves on test set](results/performance/Calibration_curves_allmodel_test.png)
+
+- Combined DCA curves
+
+![Decision curve analysis on test set](results/performance/DCA_curves_allmodel_test.png)
+
+- Example single-model confusion matrices (e.g. SVM / ANN):
+
+![SVM confusion matrix (test set)](results/performance/cm_svm_test.png)
+
+![ANN confusion matrix (test set)](results/performance/cm_ann_test.png)
+
+A summary table of test-set metrics for all models is stored as:
+
+- `results/tables/model_performance_test.csv`
+
+---
+
+### 2.8 SHAP-based model explainability
+
+The project uses **SHAP (SHapley Additive exPlanations)** for each individual model:
+
+Supported models:
+
+- Logistic regression
+- Decision tree
+- Random forest
+- XGBoost
+- LightGBM
+- SVM
+- ANN
+
+Implementation details:
+
+- Uses `shap.KernelExplainer` to provide a unified interface for all models.
+- For each model, the following plots are generated:  
+  1. **Global feature importance bar plot**  
+  2. **Beeswarm plot** for global distribution of SHAP values  
+  3. **Dependence / scatter plot** for a chosen feature, optionally colored by another feature  
+  4. **Waterfall plot** for a selected individual observation  
+  5. **Force plot** for:  
+     - a single observation  
+     - all interpreted observations
+- All figures are saved under:
+
+'''
+results/shap/
+'''
+
+Example images:
+
+![Global SHAP importance (Random Forest)](results/shap/bar_rf.png)
+
+![SHAP beeswarm (LightGBM)](results/shap/beeswarm_lgb.png)
+
+![SHAP dependence example (SVM)](results/shap/scatter_svm.png)
+
+![SHAP waterfall example (ANN)](results/shap/waterfall_5_ann.png)
+
+HTML force plots (interactive) are also generated, such as:
+
+- `force_plot_all_rf.html`
+
+- `force_plot_sig_5_ann.html`
+
+- etc.
+
+---
+
+### 2.9 Cross-model SHAP direction consistency analysis
+
+This is a **custom extension** beyond routine SHAP usage.
+
+The goal is to answer:
+
+> Do different models agree on **direction and monotonicity** of each feature’s effect, and how important is the feature across models?
+
+#### 2.9.1 Setup
+
+- Combine standardized training and test sets into one pool.
+- Draw two subsets:
+  - `bg_data`: background sample for SHAP explainer
+  - `eval_data`: sample on which we compute SHAP values
+- Models included in cross-model analysis:
+  - Decision Tree
+  - Random Forest
+  - XGBoost
+  - LightGBM
+  - SVM
+  - ANN  
+
+*(The logistic model uses a different feature set and is not included here.)*
+
+#### 2.9.2 Per-model SHAP statistics
+
+For each model and each feature:
+
+1. Compute SHAP values on `eval_data` using `KernelExplainer`.
+2. For that feature, calculate **Spearman’s ρ** between:
+   - feature values  
+   - SHAP values
+3. Record:
+   - `spearman_r` (can be positive, negative, or near zero)
+   - `sign`:
+     - `+1` if ρ > threshold  
+     - `−1` if ρ < −threshold  
+     - `0` if |ρ| is small (direction uncertain)
+4. Compute **mean(|SHAP|)** for each feature as a measure of feature importance within that model.
+
+Raw results are saved as:
+
+- `results/shap_consistency/shap_direction_signs_cross_models.csv`
+- `results/shap_consistency/shap_meanabs_cross_models.csv`
+
+#### 2.9.3 Aggregating across models
+
+For each feature across all models:
+
+- **Cross-model normalized importance** `I_norm`
+  - For each model, normalize `mean(|SHAP|)` to `[0, 1]` within that model.
+  - Average normalized importance over models to obtain `I_norm` in `[0, 1]`.
+
+- **Direction consistency metrics**
+  - `mean_r`: mean Spearman ρ over models (signed).
+  - `S_abs = |mean_r|`: magnitude-only measure of direction + monotonic strength, in `[0, 1]`.
+  - `Q_agree`: proportion of models whose sign(ρ) agrees with sign(`mean_r`), after treating small |ρ| as 0.
+  - `S_abs_times_Q = |mean_r| × Q_agree`:  
+    a stricter index combining effect strength and agreement rate.
+  - `direction_txt`: "+" / "−" / "0" based on the average sign across models.
+
+The summarized table is stored as:
+
+- `results/shap_consistency/shap_direction_overall_cross_models.csv`
+
+#### 2.9.4 Radar plot of cross-model consistency
+
+The function `plot_shap_consistency_radar`:
+
+- Selects the top `k` features by `I_norm`.
+- Plots a **radar chart** with:
+  - **Bars (purple–blue)**: cross-model normalized importance `I_norm`
+  - **Blue line**: direction-consistency metric (chosen via `use_metric`):
+    - `"S_abs"` → *Direction consistency (|mean ρ|)*
+    - `"S_abs_times_Q"` → *Direction consistency (|mean ρ| × agreement)*
+  - Feature labels with direction symbol, e.g. `feature_name (+)` / `(−)` / `(0)`.
+
+An example figure:
+
+![Cross-model SHAP consistency radar](results/shap_consistency/shap_consistency_radar_top8.png)
+
+---
+
+## 3. Directory structure
+
+.
+├── data
+│   ├── raw
+│   │   └── diabetes_raw.csv             # example dataset (can be replaced)
+│   └── processed
+│       ├── diabetes_imputed.csv
+│       ├── train_data_notscaled.csv
+│       ├── test_data_notscaled.csv
+│       ├── train_data_scaled.csv
+│       └── test_data_scaled.csv
+├── models
+│   ├── logistic_model.pkl
+│   ├── tree_model.pkl
+│   ├── rf_model.pkl
+│   ├── xgb_model.pkl
+│   ├── lgb_model.pkl
+│   ├── svm_model.pkl
+│   ├── ann_model.pkl
+│   └── significant_vars.pkl
+├── results
+│   ├── performance
+│   │   ├── cm_*.png
+│   │   ├── ROC_curves_allmodel_*.png
+│   │   ├── Calibration_curves_allmodel_*.png
+│   │   ├── DCA_curves_allmodel_*.png
+│   │   └── tree_structure.jpg
+│   ├── shap
+│   │   ├── bar_*.png
+│   │   ├── beeswarm_*.png
+│   │   ├── scatter_*.png
+│   │   ├── waterfall_*_*.png
+│   │   └── force_plot_*.html
+│   ├── shap_consistency
+│   │   ├── shap_direction_signs_cross_models.csv
+│   │   ├── shap_meanabs_cross_models.csv
+│   │   ├── shap_direction_overall_cross_models.csv
+│   │   └── shap_consistency_radar_top8.png
+│   └── tables
+│       ├── varbalance_table.csv
+│       ├── results_mulvariable_df.csv
+│       ├── model_performance_validation.csv
+│       └── model_performance_test.csv
+└── src
+    └── main.py
+
+---
+
+## 4. Environment & dependencies
+
+Key Python dependencies:
+
+- `numpy`, `pandas`
+- `matplotlib`, `seaborn`
+- `scikit-learn`
+- `statsmodels`
+- `xgboost`
+- `lightgbm`
+- `shap`
+- `tableone`
+- `missforest` (or equivalent implementation)
+
+Example `requirements.txt`:
+
+'''
+numpy
+pandas
+matplotlib
+seaborn
+scikit-learn
+statsmodels
+xgboost
+lightgbm
+shap
+tableone
+missingpy   # or another MissForest implementation as used locally
+'''
